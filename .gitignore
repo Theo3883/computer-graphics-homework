@@ -1,0 +1,41 @@
+# IDE
+.idea/
+.vscode/
+*.user
+*.suo
+*.sln.docstates
+.vs/
+
+# Compiled binaries
+*.bin
+*.exe
+*.out
+*.app
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+
+# Build directories
+build/
+dist/
+out/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Debugger
+*.dSYM/
+*.pdb
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+main.cpp

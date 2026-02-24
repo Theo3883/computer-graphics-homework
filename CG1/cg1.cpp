@@ -318,11 +318,80 @@ void Display3() {
 }
 
 
+// Draws the leaf shape: 3 sides of a hex (open arc), translated from
+// main.cpp CImage3::drawTriangleLines using the turtle polyline trick.
+// vAngle: direction of v at this node (radians), angleOffset: extra shape rotation (radians).
+void hexLeaf(double px, double py, double vAngle, double length, double angleOffset) {
+  double ang = vAngle + angleOffset;
+  double L   = length;
+
+  // Reproduce main.cpp's drawTriangleLines point computation:
+  //   v.rotatie(-60) → ang-60°  → a at dist L/2
+  //   v.rotatie(+120) → ang+60° → b at dist L/2
+  //   v.rotatie(+60)  → ang+120°→ c at dist L
+  //   v.rotatie(+120) → ang+240°→ d at dist L
+  double ax = px + cos(ang - pi/3)    * L/2;
+  double ay = py + sin(ang - pi/3)    * L/2;
+  double bx = px + cos(ang + pi/3)    * L/2;
+  double by = py + sin(ang + pi/3)    * L/2;
+  double cx = px + cos(ang + 2*pi/3)  * L;
+  double cy = py + sin(ang + 2*pi/3)  * L;
+  double dx = px + cos(ang + 4*pi/3)  * L;
+  double dy = py + sin(ang + 4*pi/3)  * L;
+
+  // Draw strip d→a→b→c using turtle polyline trick (rotate+draw per segment).
+  double segs[4][2] = {{dx,dy},{ax,ay},{bx,by},{cx,cy}};
+  Turtle t(dx, dy);
+  double curAngle = 0.0;
+  for(int ii = 1; ii < 4; ++ii) {
+    double ddx = segs[ii][0] - segs[ii-1][0];
+    double ddy = segs[ii][1] - segs[ii-1][1];
+    double segAngle = atan2(ddy, ddx);
+    t.rotate(segAngle - curAngle);
+    t.draw(hypot(ddx, ddy));
+    curAngle = segAngle;
+  }
+}
+
+// Direct port of main.cpp CImage3::image3 logic, using turtle for drawing.
+void hexLineFractal(double px, double py, double vAngle, double length, int level, double angleOffset) {
+  // alternating rotation sign, same as main.cpp
+  double rotation = (level % 2 == 0) ? -1.0 : 1.0;
+
+  if(level == 0) {
+    hexLeaf(px, py, vAngle, length, angleOffset);
+    return;
+  }
+
+  double newLen = length / 2.0;
+
+  // Child 1: straight ahead in v
+  double p1x = px + cos(vAngle) * newLen;
+  double p1y = py + sin(vAngle) * newLen;
+  hexLineFractal(p1x, p1y, vAngle, newLen, level-1, angleOffset);
+
+  // Child 2: v rotated +120°
+  double v2 = vAngle + 2*pi/3;
+  double p2x = px + cos(v2) * newLen;
+  double p2y = py + sin(v2) * newLen;
+  hexLineFractal(p2x, p2y, v2, newLen, level-1, angleOffset + rotation * 2*pi/3);
+
+  // Child 3: v rotated +240°
+  double v3 = vAngle + 4*pi/3;
+  double p3x = px + cos(v3) * newLen;
+  double p3y = py + sin(v3) * newLen;
+  hexLineFractal(p3x, p3y, v3, newLen, level-1, angleOffset - rotation * 2*pi/3);
+}
+
 void Display4() {
-  //Draw the triangle-like hex line fractal here.
   glColor3f(1, 0, 0);
   drawRecursionLevel();
-  
+  glPushMatrix();
+  glLoadIdentity();
+  glTranslated(0.0, -0.4, 0.0);
+  glScaled(1, 1, 1.0);
+  hexLineFractal(0.0, 0.0, pi/2, 1.0, g_recursionCurrent - 1, 0.0);
+  glPopMatrix();
 }
 
 template <typename FloatType>
