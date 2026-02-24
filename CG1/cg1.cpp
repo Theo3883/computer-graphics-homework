@@ -249,6 +249,26 @@ void fractalKochCurve(Turtle t, float distance, int recursionsLeft = 1) {
   }
 }
 
+/*
+  Display1 - Fractalul Koch (Fulg de Nea)
+  ----------------------------------------
+  Fractatul Koch se construieste pornind de la un triunghi echilateral.
+  Fiecare latura a triunghiului este inlocuita recursiv cu o curba Koch:
+    - se imparte segmentul in 3 parti egale
+    - partea de mijloc este inlocuita cu un triunghi echilateral fara baza
+    - rezulta 4 segmente de lungime 1/3 din original, dispuse in forma de 'cort'
+
+  Calcule geometrice:
+    - raza cercului circumscris triunghiului initial = radius = 0.95
+    - cele 3 varfuri sunt pozitionate la unghiuri 0, 120, 240 grade fata de centru
+    - lungimea laturii unui triunghi echilateral cu raza cercului circumscris R = R*sqrt(3)
+    - la fiecare nivel de recursie, lungimea segmentului se imparte la 3
+    - unghiurile de rotire ale curbei: +60 grade la urcare, -120 grade la coborare, +60 grade revenire
+
+  Cu fiecare nivel de recursie, numarul de segmente se inmulteste cu 4,
+  iar lungimea fiecaruia scade la 1/3, deci lungimea totala creste cu factorul 4/3.
+  La infinit, perimetrul devine infinit, dar aria ramane finita.
+*/
 void Display1() {
   glColor3f(1, 0, 0);
   drawRecursionLevel();
@@ -275,7 +295,12 @@ void Display1() {
   t1.rotate(-pi/3 - pi/2);
   t2.rotate(-pi/3 - pi/2);
 
-  //Why sqrt(3)?
+  // De ce sqrt(3)?
+  // Latura unui triunghi echilateral inscris intr-un cerc de raza R este a = R * sqrt(3).
+  // Demonstratie:
+  //   - inaltimea unui triunghi echilateral cu latura a: h = (sqrt(3)/2) * a
+  //   - circumcentrul imparte mediana in raport 2:1, deci R = (2/3) * h = (sqrt(3)/3) * a
+  //   - rezulta: a = R * sqrt(3)
   fractalKochCurve(t0, sqrt(3) * radius, g_recursionCurrent);
   fractalKochCurve(t1, sqrt(3) * radius, g_recursionCurrent);
   fractalKochCurve(t2, sqrt(3) * radius, g_recursionCurrent);
@@ -295,6 +320,26 @@ void fractalBinaryTree(Turtle t, float distance, int recursionsLeft = 1) {
     }
 }
 
+/*
+  Display2 - Arborele Binar Fractal
+  ----------------------------------
+  Un arbore binar fractal se construieste recursiv astfel:
+    - se deseneaza un segment (trunchiul) in directia curenta
+    - la capatul segmentului se creeaza 2 ramuri noi, rotite cu +45 si -45 grade
+    - fiecare ramura are lungimea jumatate fata de cea parinte: distance/2
+    - recursiunea se opreste cand nu mai sunt niveluri ramase
+
+  Calcule geometrice:
+    - punctul de start este (0, -0.95) - baza jos-centru a ferestrei
+    - directia initiala este pi/2 (sus, adica 90 grade)
+    - la fiecare nivel i, lungimea ramurii = 0.95 / 2^i
+    - numarul de ramuri la nivelul i = 2^i
+    - unghiul ramurilor stangi fata de parinte: +pi/4 (+45 grade)
+    - unghiul ramurilor drepte fata de parinte: -pi/4 (-45 grade)
+
+  Structura rezultata seamana cu un copac sau o antena.
+  Cu cat nivelul de recursie este mai mare, cu atat arborele are mai multe ramuri subtiri.
+*/
 void Display2() {
   glColor3f(1, 0, 0);
   drawRecursionLevel();
@@ -303,6 +348,28 @@ void Display2() {
   fractalBinaryTree(t, 0.95, g_recursionCurrent);
 }
 
+/*
+  Display3 - Fractatul Patratelor Recursive (Covorul lui Sierpinski patrat)
+  --------------------------------------------------------------------------
+  Pornind de la un patrat mare, acesta se imparte intr-o grila 3x3 de 9 celule egale.
+  Celula din mijloc (rand=1, col=1) se deseneaza si ramane goala (nu recurseza mai departe).
+  Celelalte 8 celule din jur sunt recurse la randul lor cu acelasi algoritm.
+
+  Calcule geometrice:
+    - dimensiunea initiala drawSize = 1.9 (aproape toata fereastra)
+    - dimensiunea copilului = drawSize / 3 la fiecare nivel
+    - pozitionarea copilului (row, col) fata de parintele din colt stanga-jos:
+        * muta turtle cu col * childDistance in directia curenta (orizontal)
+        * roteste cu +pi/2 (90 grade stanga)
+        * muta cu row * childDistance (vertical)
+        * roteste inapoi cu -pi/2 pentru a readuce orientarea originala
+    - centrul (row=1, col=1) este sarit - acolo se afla patratul desenat
+
+  La nivelul N de recursie:
+    - exista 8^N patrate mici
+    - dimensiunea fiecaruia este (1/3)^N din dimensiunea initiala
+    - structura este un fractal cu dimensiunea Hausdorff = log(8)/log(3) ≈ 1.893
+*/
 void Display3() {
   //Draw the recursive-square fractal here.
   glColor3f(1, 0, 0);
@@ -318,18 +385,38 @@ void Display3() {
 }
 
 
-// Draws the leaf shape: 3 sides of a hex (open arc), translated from
-// main.cpp CImage3::drawTriangleLines using the turtle polyline trick.
-// vAngle: direction of v at this node (radians), angleOffset: extra shape rotation (radians).
+/*
+  hexLeaf - Deseneaza forma de baza a fractalului (frunza hexagonala).
+
+  Parametri:
+    px, py      - coordonatele punctului de origine al nodului curent
+    vAngle      - directia vectorului 'v' in acest nod (radiani)
+    length (L)  - lungimea de referinta pentru segmente
+    angleOffset - rotatie suplimentara acumulata prin recursie (radiani)
+
+  Calcul puncte:
+    Directia combinata: ang = vAngle + angleOffset
+    Pornind din origine (px, py), cele 4 puncte se calculeaza cu cos/sin:
+      a = (px + cos(ang - pi/3)   * L/2,  py + sin(ang - pi/3)   * L/2)   <- stanga-sus
+      b = (px + cos(ang + pi/3)   * L/2,  py + sin(ang + pi/3)   * L/2)   <- dreapta-sus
+      c = (px + cos(ang + 2*pi/3) * L,    py + sin(ang + 2*pi/3) * L)     <- varf sus
+      d = (px + cos(ang + 4*pi/3) * L,    py + sin(ang + 4*pi/3) * L)     <- varf jos
+
+  Forma desenata:
+    Se deseneaza lantul de 3 segmente: d -> a -> b -> c
+    Aceasta formeaza un arc deschis de hexagon (3 laturi din 6).
+
+  Tehnica Turtle (polyline trick):
+    - Turtle porneste plasata la pozitia 'd'.
+    - Pentru fiecare segment urmator, se calculeaza unghiul sau cu atan2(dy, dx).
+    - Turtle se roteste cu diferenta dintre unghiul nou si cel curent,
+      apoi deseneaza segmentul cu t.draw(lungime).
+    - Astfel nu este nevoie sa stim pozitia absoluta - doar directia relativa.
+*/
 void hexLeaf(double px, double py, double vAngle, double length, double angleOffset) {
   double ang = vAngle + angleOffset;
   double L   = length;
 
-  // Reproduce main.cpp's drawTriangleLines point computation:
-  //   v.rotatie(-60) → ang-60°  → a at dist L/2
-  //   v.rotatie(+120) → ang+60° → b at dist L/2
-  //   v.rotatie(+60)  → ang+120°→ c at dist L
-  //   v.rotatie(+120) → ang+240°→ d at dist L
   double ax = px + cos(ang - pi/3)    * L/2;
   double ay = py + sin(ang - pi/3)    * L/2;
   double bx = px + cos(ang + pi/3)    * L/2;
@@ -353,9 +440,44 @@ void hexLeaf(double px, double py, double vAngle, double length, double angleOff
   }
 }
 
-// Direct port of main.cpp CImage3::image3 logic, using turtle for drawing.
+/*
+  hexLineFractal - Fractal hex-linie recursiv.
+
+  Parametri:
+    px, py      - punctul de origine al nodului curent in spatiul 2D
+    vAngle      - directia de propagare a nodului (radiani; 0 = dreapta, pi/2 = sus)
+    length      - lungimea de referinta curenta (se injumatateste la fiecare nivel)
+    level       - nivelul de recursivitate ramas (0 = deseneaza frunza)
+    angleOffset - offset acumulat de rotatie pentru orientarea formei frunzei
+
+  Algoritm:
+    Cazul de baza (level == 0):
+      Se apeleaza hexLeaf() pentru a desena forma deschisa de hexagon.
+
+    Cazul recursiv (level > 0):
+      1. newLen = length / 2  (lungimea copilului este jumatate)
+      2. Se calculeaza 3 directii de propagare:
+           v1 = vAngle           (inainte)
+           v2 = vAngle + 2*pi/3  (stanga, +120 grade)
+           v3 = vAngle + 4*pi/3  (dreapta, +240 grade)
+      3. Fiecare copil este plasat la distanta newLen in directia sa:
+           p_fiu = (px + cos(v_fiu) * newLen,  py + sin(v_fiu) * newLen)
+      4. Se recurse cu level-1 si cu angleOffset actualizat:
+           Fiu 1 (inainte):  angleOffset nemodificat
+           Fiu 2 (+120 grade): angleOffset += rotation * 2*pi/3
+           Fiu 3 (+240 grade): angleOffset -= rotation * 2*pi/3
+
+  Rotatia alternanta:
+    rotation = (level % 2 == 0) ? -1 : +1
+    La nivelurile pare rotatia este negativa, la cele impare pozitiva.
+    Aceasta inverseaza sensul de rasucire al formei la fiecare nivel,
+    producand efectul de 'S' sau 'Z' vizibil la nivelul 2.
+
+  Structura rezultata:
+    La nivel 1: 3 frunze aranjate radial la 120 grade una fata de alta.
+    La nivel N: 3^N frunze in tiparul unui triunghi Sierpinski cu 3 ramuri.
+*/
 void hexLineFractal(double px, double py, double vAngle, double length, int level, double angleOffset) {
-  // alternating rotation sign, same as main.cpp
   double rotation = (level % 2 == 0) ? -1.0 : 1.0;
 
   if(level == 0) {
@@ -383,6 +505,37 @@ void hexLineFractal(double px, double py, double vAngle, double length, int leve
   hexLineFractal(p3x, p3y, v3, newLen, level-1, angleOffset - rotation * 2*pi/3);
 }
 
+/*
+  Display4 - Fractalul de Linii Hexagonale
+  ---------------------------------------------------------------------------
+  Acest fractal are o structura radiala cu 3 ramuri simetrice la 120 grade.
+  La fiecare nod, recursiunea produce 3 copii plasati in directiile:
+    - inainte (vAngle + 0)
+    - stanga (vAngle + 120 grade = +2*pi/3)
+    - dreapta (vAngle + 240 grade = +4*pi/3)
+  Fiecare copil are lungimea jumatate fata de parinte: newLen = length / 2.
+
+  Rotatie alternanta:
+    - la nivelurile pare, rotation = -1
+    - la nivelurile impare, rotation = +1
+    - unghiul de offset se acumuleaza: angleOffset +/- rotation * 120 grade
+    - aceasta produce efectul de rasucire S/Z vizibil in fractal
+
+  Frunza (nivel 0) - forma desenata:
+    Pornind din punctul (px, py) cu directia vAngle + angleOffset, se calculeaza
+    4 puncte (a, b, c, d) folosind rotatii de -60, +60, +120, +240 grade:
+      a = p + (ang - 60°) * L/2
+      b = p + (ang + 60°) * L/2
+      c = p + (ang + 120°) * L
+      d = p + (ang + 240°) * L
+    Se deseneaza poliinia d -> a -> b -> c (3 segmente conectate).
+
+  Pozitionarea pe ecran:
+    - punctul de start: (0, 0), directia initiala: pi/2 (sus)
+    - fractalul este centrat in origine, translat usor in jos cu glTranslated
+    - nivelul de recursie transmis = g_recursionCurrent - 1
+      (deoarece nivelul 0 din main.cpp corespunde unui singur element vizibil)
+*/
 void Display4() {
   glColor3f(1, 0, 0);
   drawRecursionLevel();
@@ -553,6 +706,25 @@ public:
   }
 };
 
+/*
+  Display5 - Multimea Mandelbrot in 2 culori
+  -------------------------------------------
+  Multimea Mandelbrot este un caz special al multimii Julia-Fatou:
+    MB(x, y) = JF(x, y, x, y)  =>  z0 = x+yi,  c = x+yi  (ambele egale cu punctul de pe ecran)
+
+  Algoritmul pentru fiecare pixel (x, y):
+    1. Se construieste numarul complex z0 = x + y*i
+    2. Se itereaza sirul: z_{n+1} = z_n^2 + z0  (c = z0, nu o constanta fixa)
+    3. Daca |z_n| > raza_maxima inainte de maxIteration pasi => diverge => punct IN AFARA multimii
+    4. Daca sirul nu a divergit dupa maxIteration pasi => converge => punct IN multime
+
+  Colorare:
+    - Punctele din interiorul multimii (converge): desenate cu rosu (1.0, 0.1, 0.1)
+    - Punctele din exterior (diverge): NU se deseneaza => fundalul alb al ferestrei ramane vizibil
+
+  Domeniu matematic: [-2, 2] x [-2, 2]
+  Domeniu pe ecran:  [-1, 1] x [-1, 1]
+*/
 void Display5() {
   // 2-colour Mandelbrot: inside=red, outside=dark blue
   drawBitmapString("Mandelbrot 2-colour", -0.98, -0.98);
@@ -560,6 +732,33 @@ void Display5() {
   mb.drawTwoColor(-1.0, 1.0, -1.0, 1.0, g_w, g_h);
 }
 
+/*
+  Display6 - Multimea Mandelbrot cu gradient de culori (curcubeu HSV)
+  ---------------------------------------------------------------------
+  Foloseste acelasi algoritm ca Display5 pentru a calcula multimea Mandelbrot,
+  dar punct exterior primeste o culoare in functie de VITEZA de divergenta.
+
+  Algoritmul de colorare prin "escape-time":
+    - test() returneaza numarul de iteratii RAMASE cand |z| > raza_maxima
+    - escape_iter = maxIteration - it  =>  cat de repede a divergit punctul
+      * escape_iter mic (1-2): diverge rapid => punct DEPARTE de multime
+      * escape_iter mare (aproape maxIteration): diverge lent => punct APROAPE de granita
+
+  Conversia escape_iter in culoare HSV:
+    t = escape_iter / maxIteration  (valoare intre 0 si 1)
+    hue = 240 * (1 - t)  (unghi de culoare in grade)
+      * t≈0 (departe, diverge repede): hue=240 => albastru
+      * t≈0.5 (distanta medie):        hue=120 => verde
+      * t≈1 (aproape de granita):      hue=0   => rosu
+    Culoarea finala RGB se calculeaza din HSV cu saturatie=1, luminozitate=1.
+
+  Punctele DIN interiorul multimii nu se deseneaza => fundalul negru ramane vizibil.
+  Fundalul este setat la negru cu glClearColor(0,0,0,1) la inceputul functiei.
+
+  Domeniu matematic: [-2, 2] x [-2, 2]
+  maxRadius = 2 (raza standard de escape pentru Mandelbrot)
+  maxIteration = 150 (mai multe iteratii => mai multa detaliu la granita)
+*/
 void Display6() {
   // Gradient Mandelbrot: black background, HSV rainbow outside, black inside
   glClearColor(0.0, 0.0, 0.0, 1.0);
