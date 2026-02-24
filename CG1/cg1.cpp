@@ -465,33 +465,108 @@ public:
   }
 };
 
-void Display5() {
-  glColor3f(1, 0, 0);
-  drawJfConstants();
-  float drawSize = 0.95;
-  JF<double> jf(-2, 2, -2, 2, g_jfa, g_jfb);
-  jf.draw(-drawSize, drawSize, -drawSize, drawSize, g_w, g_h);
-}
-
-
 //Modify what you think necessary in the MB class to draw the Mandelbrot Fractal.
 template <typename FloatType>
 class MB: public JF<FloatType> {
 public:
   MB(FloatType xmin, FloatType xmax, FloatType ymin, FloatType ymax, FloatType a = 0, FloatType b = 0, FloatType maxRadius = 20, int maxIteration = 150):
     JF<FloatType>(xmin, xmax, ymin, ymax, a, b, maxRadius, maxIteration) {}
+
+  // Mandelbrot: z0=0, c=point (swap roles vs JF)
+  virtual inline int test(std::complex<FloatType> z, std::complex<FloatType> c, double maxRadius = 2, int maxIteration = 50) override {
+    std::complex<FloatType> zz(0, 0);
+    for(int ii = maxIteration; ii > 0; --ii) {
+      zz = zz * zz + z; // z is the screen point used as c
+      if(std::abs(zz) > maxRadius) return ii;
+    }
+    return 0;
+  }
+
+  // 2-colour draw: inside=red, outside=not drawn (white background shows through)
+  void drawTwoColor(FloatType l, FloatType rt, FloatType bot, FloatType top, int sph, int spv) {
+    glPointSize(1);
+    FloatType stepx = (this->m_xmax - this->m_xmin) / FloatType(sph);
+    FloatType stepy = (this->m_ymax - this->m_ymin) / FloatType(spv);
+    FloatType steph = (rt  - l)   / FloatType(sph);
+    FloatType stepv = (top - bot) / FloatType(spv);
+    std::complex<FloatType> z;
+    glColor3f(1.0f, 0.1f, 0.1f); // inside: red
+    glBegin(GL_POINTS);
+    for(FloatType jj = 0, y = this->m_ymin, v = bot; jj < spv; jj += 1, y += stepy, v += stepv) {
+      z.imag(y);
+      for(FloatType ii = 0, x = this->m_xmin, h = l; ii < sph; ii += 1, x += stepx, h += steph) {
+        z.real(x);
+        int it = this->test(z, this->m_c, this->m_maxRadius, this->m_maxIteration);
+        if(it == 0) {
+          glVertex2d(h, v); // only draw inside points
+        }
+      }
+    }
+    glEnd();
+  }
+
+  // HSV to RGB helper (S=1, V=1)
+  void hsvToRgb(float hue, float &r, float &g, float &b) {
+    hue = fmod(hue, 360.0f);
+    if(hue < 0) hue += 360.0f;
+    int sector = int(hue / 60.0f) % 6;
+    float f = hue / 60.0f - float(sector);
+    float q = 1.0f - f;
+    switch(sector) {
+      case 0: r=1;   g=f;   b=0;   break;
+      case 1: r=q;   g=1;   b=0;   break;
+      case 2: r=0;   g=1;   b=f;   break;
+      case 3: r=0;   g=q;   b=1;   break;
+      case 4: r=f;   g=0;   b=1;   break;
+      default:r=1;   g=0;   b=q;   break;
+    }
+  }
+
+  // Gradient draw: HSV rainbow — blue (far from set) → green → red (near boundary), inside=black
+  void drawGradient(FloatType l, FloatType rt, FloatType bot, FloatType top, int sph, int spv) {
+    glPointSize(1);
+    FloatType stepx = (this->m_xmax - this->m_xmin) / FloatType(sph);
+    FloatType stepy = (this->m_ymax - this->m_ymin) / FloatType(spv);
+    FloatType steph = (rt  - l)   / FloatType(sph);
+    FloatType stepv = (top - bot) / FloatType(spv);
+    std::complex<FloatType> z;
+    glBegin(GL_POINTS);
+    for(FloatType jj = 0, y = this->m_ymin, v = bot; jj < spv; jj += 1, y += stepy, v += stepv) {
+      z.imag(y);
+      for(FloatType ii = 0, x = this->m_xmin, h = l; ii < sph; ii += 1, x += stepx, h += steph) {
+        z.real(x);
+        int it = this->test(z, this->m_c, this->m_maxRadius, this->m_maxIteration);
+        if(it == 0) {
+          // inside the set: black (skip drawing, black bg shows through)
+        } else {
+          // hue: 240=blue (fast escape/far) down to 0=red (slow escape/near boundary)
+          float t = float(it) / float(this->m_maxIteration);
+          float hue = 240.0f * t;
+          float cr, cg, cb;
+          hsvToRgb(hue, cr, cg, cb);
+          glColor3f(cr, cg, cb);
+          glVertex2d(h, v);
+        }
+      }
+    }
+    glEnd();
+  }
 };
 
-void Display6() {
-  //Draw the Mandelbrot fractal here.
-  float drawSize = 1.0;
+void Display5() {
+  // 2-colour Mandelbrot: inside=red, outside=dark blue
+  drawBitmapString("Mandelbrot 2-colour", -0.98, -0.98);
   MB<double> mb(-2, 2, -2, 2);
-  /*
-    +1 because we're going full-window, and pixel-perfect drawing
-    is weird because pixels are actually placed at 0.5 coordinates.
-    More on this in the Shaders homework and lecture.
-  */
-  mb.draw(-drawSize, drawSize, -drawSize, drawSize, g_w + 1, g_h + 1);
+  mb.drawTwoColor(-1.0, 1.0, -1.0, 1.0, g_w, g_h);
+}
+
+void Display6() {
+  // Gradient Mandelbrot: black background, HSV rainbow outside, black inside
+  glClearColor(0.0, 0.0, 0.0, 1.0);
+  glClear(GL_COLOR_BUFFER_BIT);
+  drawBitmapString("Mandelbrot gradient", -0.98, -0.98);
+  MB<double> mb(-2, 2, -2, 2);
+  mb.drawGradient(-1.0, 1.0, -1.0, 1.0, g_w, g_h);
 }
 
 void Display7() {
