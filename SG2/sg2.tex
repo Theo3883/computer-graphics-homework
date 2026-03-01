@@ -44,6 +44,21 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
   \begin{figure}
     \center
 \begin{tikzpicture}[scale=3]
+  \draw[black, thin] (-0.5,-0.5) rectangle (0.5,0.5);
+  \path[fill=blue]
+    (60:0.35) --
+    (0:0.35) --
+    (-60:0.35) --
+    (-120:0.35) --
+    (180:0.35) --
+    (120:0.35) -- cycle;
+  \path[fill=white,draw=red,line width=0.4pt]
+    (60:0.20) --
+    (0:0.20) --
+    (-60:0.20) --
+    (-120:0.20) --
+    (180:0.20) --
+    (120:0.20) -- cycle;
 \end{tikzpicture}
 \caption{Task 1: Hexagon drawing}
   \end{figure}
@@ -220,7 +235,11 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
 \begin{frame}
 \begin{figure}
   \center
-\begin{tikzpicture}
+\begin{tikzpicture}[x=4.8cm,y=4.8cm]
+  \def\a{0.3}
+  \def\b{0.2}
+  \draw[black, very thin, domain=0:360, samples=1000, smooth, variable=\t]
+    plot ({2*(\a*cos(\t)+\b)*cos(\t)}, {2*(\a*cos(\t)+\b)*sin(\t)});
 \end{tikzpicture}
   \caption{Task 2: Circle Concoid}
 \end{figure}
@@ -246,6 +265,17 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
 \begin{figure}
   \center
 \begin{tikzpicture}
+  \begin{polaraxis}[
+    ymin=0,
+    ymax=1.2,
+    xtick={0,30,...,330},
+    ytick={0,0.5,1},
+    grid=both,
+    minor y tick num=1,
+    width=8.5cm,
+  ]
+    \addplot [blue, smooth, domain=0:360, samples=2200] {abs(sin(10*x))};
+  \end{polaraxis}
 \end{tikzpicture}
   \caption{Task 3: Polar plotting}
 \end{figure}
@@ -279,6 +309,26 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
   \begin{figure}
     \center
     \begin{tikzpicture}
+      \begin{axis} [
+        title=Miles per gallon,
+        xlabel=hosepower,
+        ylabel=mpg,
+        xmin=25,
+        xmax=245,
+        ymin=5,
+        ymax=50,
+        width=9.6cm,
+        height=6.8cm,
+      ]
+        \addplot [blue, only marks, mark=*, mark size=1.05pt, samples=180, domain=45:110]
+          ({x + 16*(rnd-0.5)}, {1700/x + 8 + 12*(rnd-0.5)});
+        \addplot [blue, only marks, mark=*, mark size=1.05pt, samples=140, domain=80:165]
+          ({x + 12*(rnd-0.5)}, {1450/x + 6 + 9*(rnd-0.5)});
+        \addplot [blue, only marks, mark=*, mark size=1.05pt, samples=70, domain=140:230]
+          ({x + 10*(rnd-0.5)}, {1100/x + 7 + 5*(rnd-0.5)});
+        \addplot [red, thin, smooth, samples=300, domain=40:230]
+          {0.00130719*x^2 - 0.558823*x + 72.8758};
+      \end{axis}
     \end{tikzpicture}
     \caption{4: Plotting datafiles. Make sure to clean data, and regress it externally. Here, a $2^{nd}$ degree polynomial function was fitted in R.}
   \end{figure}
