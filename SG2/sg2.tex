@@ -1,9 +1,15 @@
 \documentclass{beamer}
+
+% TikZ = desen vectorial direct in LaTeX.
 \usepackage{tikz}
 \usetikzlibrary{math}
 
+% PGFPlots = grafice carteziene/polare peste TikZ.
 \usepackage{pgfplots}
 \usepgfplotslibrary{polar}
+
+% Compatibilitatea recomandata pentru versiunea moderna PGFPlots.
+\pgfplotsset{compat=1.18}
 
 %Please read on the commands and options used below (either in the TikZ / PGFPlots manuals, or elsewhere).
 
@@ -28,6 +34,12 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
 
 \begin{document}
 
+% -----------------------------------------------------------------
+% EXEMPLU 1: Primitive TikZ (linii / poligon / umplere).
+% Construim doua forme simple:
+%   - un triunghi albastru plin (draw + fill)
+%   - un contur rosu inchis (cycle)
+% -----------------------------------------------------------------
 \begin{frame}
   \begin{figure}
     \center
@@ -40,6 +52,14 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
 \end{frame}
 
 
+% -----------------------------------------------------------------
+% TASK 1: Hexagoane concentrice.
+% CUM:
+%   1) trasam un chenar patrat subtire (referinta vizuala)
+%   2) desenam hexagonul mare albastru (umplut)
+%   3) desenam hexagonul interior alb + contur rosu
+% Observatie: coordonatele de forma (60:R), (0:R), ... sunt in sistem polar.
+% -----------------------------------------------------------------
 \begin{frame}
   \begin{figure}
     \center
@@ -66,6 +86,14 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
 
 
 
+% -----------------------------------------------------------------
+% EXEMPLU 2.1: Conchoida lui Nicomede, varianta calculata "manual".
+% Idee:
+%   - parametrizam curba pe t
+%   - estimam intai limitele maxime pe axe (xmax, ymax)
+%   - apoi normalizam punctele in ferestra de desen
+% Avantaj: control complet pe scalare si pe intreruperile numerice.
+% -----------------------------------------------------------------
 \begin{frame}
   \begin{figure}
     \center
@@ -149,6 +177,13 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
 \end{figure}
 \end{frame}
 
+% -----------------------------------------------------------------
+% EXEMPLU 2.2: Aceeasi familie de curbe, dar cu plot automat TikZ.
+% CUM:
+%   - folosim domain pentru intervalul lui t
+%   - evitam valorile foarte aproape de ±90° (tan explodeaza)
+%   - comparatie intre doua decupari de domeniu (stanga/dreapta)
+% -----------------------------------------------------------------
 \begin{frame}
   \begin{figure}
     \center
@@ -171,6 +206,10 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
 \end{frame}
 
 
+% -----------------------------------------------------------------
+% EXEMPLU 2.3: f(x)=|sin(x)|*exp(-sin(x)), esantionare implicita.
+% Aici aratam cum arata un grafic atunci cand nu cerem smooth/samples mare.
+% -----------------------------------------------------------------
 \begin{frame}
   \begin{figure}
     \center
@@ -190,6 +229,10 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
   \end{figure}
 \end{frame}
 
+% -----------------------------------------------------------------
+% EXEMPLU 2.4: Acelasi grafic, dar cu "smooth".
+% Smooth doar interpoleaza vizual; nu creste neaparat fidelitatea numerica.
+% -----------------------------------------------------------------
 \begin{frame}
   \begin{figure}
     \center
@@ -210,6 +253,10 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
   \end{figure}
 \end{frame}
 
+% -----------------------------------------------------------------
+% EXEMPLU 2.5: Acelasi grafic, "smooth" + samples mare.
+% Aceasta este varianta corecta pentru curba mai fina si mai stabila.
+% -----------------------------------------------------------------
 \begin{frame}
   \begin{figure}
     \center
@@ -232,6 +279,16 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
 \end{frame}
 
 
+% -----------------------------------------------------------------
+% TASK 2: Circle Concoid (Limaçon / Pascal's Snail), marit pe pagina.
+% Formula folosita in cerinta:
+%   x = 2*(a*cos(t)+b)*cos(t)
+%   y = 2*(a*cos(t)+b)*sin(t)
+% CUM:
+%   - setam a=0.3, b=0.2
+%   - parcurgem t pe [0,360]
+%   - scalam sistemul de axe TikZ (x,y) ca sa ocupe mai mult din frame.
+% -----------------------------------------------------------------
 \begin{frame}
 \begin{figure}
   \center
@@ -247,6 +304,10 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
 
 
 
+% -----------------------------------------------------------------
+% EXEMPLU 3: Polar simplu (spirala in coordonate polare).
+% Sintaxa PGFPlots polar: (unghi, raza).
+% -----------------------------------------------------------------
 \begin{frame}
 \begin{figure}
   \center
@@ -261,6 +322,15 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
 \end{frame}
 
 
+% -----------------------------------------------------------------
+% TASK 3: Floare polara ("petale") conform cerintei SG1.
+% Formula:
+%   r = sin(a*t), cu a=10 (=> 2*a petale pe [0, 2*pi]).
+% CUM:
+%   - folosim abs(...) pentru petale uniforme (fara alternanta semnului)
+%   - domeniu 0..360 grade
+%   - samples mare pentru contur continuu/fara intreruperi
+% -----------------------------------------------------------------
 \begin{frame}
 \begin{figure}
   \center
@@ -281,6 +351,9 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
 \end{figure}
 \end{frame}
 
+% -----------------------------------------------------------------
+% EXEMPLU 4: Mix date punctuale + date din CSV (mpg.csv).
+% -----------------------------------------------------------------
 \begin{frame}
   \begin{figure}
     \center
@@ -305,6 +378,13 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
   \end{figure}
 \end{frame}
 
+% -----------------------------------------------------------------
+% TASK 4 + TASK 5 (vizual): nor de puncte + regresie polinomiala de grad 2.
+% CUM:
+%   - desenam puncte albastre (simulare de nor de date de tip auto-mpg)
+%   - suprapunem curba rosie (polinom de grad 2) ca "fit" extern
+%   - pastram caption-ul cerut de laborator (regresie explicata separat la lab)
+% -----------------------------------------------------------------
 \begin{frame}
   \begin{figure}
     \center
