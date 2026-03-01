@@ -130,9 +130,151 @@
 
 
 \begin{frame}{Task 1: Rastrigin's function - like this}
+  \begin{tikzpicture}
+    \begin{axis}[
+      view={-60}{25},
+      domain=-5.12:5.12,
+      y domain=-5.12:5.12,
+      samples=45,
+      samples y=45,
+      xlabel={$x$},
+      ylabel={$y$},
+      zlabel={$f(x,y)$},
+      colormap/hot,
+      zmin=0,
+    ]
+      \addplot3[surf,shader=interp]
+        {20 + x^2 - 10*cos(deg(2*pi*x)) + y^2 - 10*cos(deg(2*pi*y))};
+    \end{axis}
+  \end{tikzpicture}
 \end{frame}
 
 \begin{frame}{Task 2: 3D scatterplot}
+  \begin{tikzpicture}
+    \begin{axis}[
+      title={Subspecies separation},
+      xlabel=Sepal length,
+      ylabel=Sepal width,
+      zlabel=Petal length,
+      xmin=4.3,
+      xmax=7.9,
+      ymin=2.0,
+      ymax=4.6,
+      zmin=0.8,
+      zmax=7.0,
+      xtick={5,6,7},
+      ytick={2,3,4},
+      ztick={5},
+      width=9.6cm,
+      height=6.3cm,
+      legend style={anchor=north west, at={(0.86,0.84)}, align=left, draw=black, fill=white},
+      view={-120}{23},
+    ]
+      \addplot3[
+        only marks,
+        mark=o,
+        mark size=1.8pt,
+        mark options={draw=red, fill=white, line width=0.5pt}
+      ] table[
+        col sep=comma,
+        x=sepal_length,
+        y=sepal_width,
+        z=petal_length,
+        restrict expr to domain={\thisrow{species_id}}{0:0}
+      ]{iris.csv};
+      \addlegendentry{Setosa}
+
+      \addplot3[
+        only marks,
+        mark=triangle,
+        mark size=2.0pt,
+        mark options={draw=green!70!black, fill=white, line width=0.5pt}
+      ] table[
+        col sep=comma,
+        x=sepal_length,
+        y=sepal_width,
+        z=petal_length,
+        restrict expr to domain={\thisrow{species_id}}{1:1}
+      ]{iris.csv};
+      \addlegendentry{Versicolor}
+
+      \addplot3[
+        only marks,
+        mark=diamond,
+        mark size=1.8pt,
+        mark options={draw=blue, fill=white, line width=0.5pt}
+      ] table[
+        col sep=comma,
+        x=sepal_length,
+        y=sepal_width,
+        z=petal_length,
+        restrict expr to domain={\thisrow{species_id}}{2:2}
+      ]{iris.csv};
+      \addlegendentry{Virginica}
+    \end{axis}
+  \end{tikzpicture}
+\end{frame}
+
+\begin{frame}{Task 3: Explanation on scatterplot}
+  \begin{tikzpicture}
+    \begin{axis}[
+      title={Subspecies separation + petal width encoding},
+      xlabel=Sepal length,
+      ylabel=Sepal width,
+      zlabel=Petal length,
+      xmin=4.3,
+      xmax=8.0,
+      ymin=2.0,
+      ymax=4.6,
+      zmin=0.8,
+      zmax=7.0,
+      xtick={5,6,7,8},
+      ytick={2,3,4},
+      ztick={5},
+      width=9.8cm,
+      height=6.4cm,
+      view={-35}{26},
+      legend style={
+        anchor=north west,
+        at={(0.60,0.82)},
+        align=left,
+        draw=black,
+        fill=white,
+        font=\small,
+        /tikz/text width=5.2cm
+      },
+      colormap/viridis,
+      point meta min=0.1,
+      point meta max=2.6,
+    ]
+      \addplot3[
+        surf,
+        shader=flat,
+        draw=none,
+        fill=orange,
+        fill opacity=0.12,
+        samples=2,
+        domain=4.3:8.0,
+        y domain=2.0:4.5,
+      ] ({x},{y},{2.45});
+      \addlegendentry{Plane: petal length \approx 2.45}
+
+      \addplot3[
+        only marks,
+        scatter,
+        mark=o,
+        mark size=1.4pt,
+        scatter src=explicit,
+      ] table[
+        col sep=comma,
+        x=sepal_length,
+        y=sepal_width,
+        z=petal_length,
+        meta=petal_width,
+      ]{iris.csv};
+      \addlegendentry{All samples\\(colour = petal width)}
+    \end{axis}
+  \end{tikzpicture}
 \end{frame}
 
 
