@@ -39,3 +39,12 @@ Makefile
 .LSOverride
 
 main.cpp
+
+# LaTeX generated files (keep only sg2.tex and sg2.pdf)
+mpg.csv
+*.aux
+*.log
+*.nav
+*.out
+*.snm
+*.toc
