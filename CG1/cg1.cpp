@@ -406,12 +406,9 @@ void Display3() {
     Se deseneaza lantul de 3 segmente: d -> a -> b -> c
     Aceasta formeaza un arc deschis de hexagon (3 laturi din 6).
 
-  Tehnica Turtle (polyline trick):
-    - Turtle porneste plasata la pozitia 'd'.
-    - Pentru fiecare segment urmator, se calculeaza unghiul sau cu atan2(dy, dx).
-    - Turtle se roteste cu diferenta dintre unghiul nou si cel curent,
-      apoi deseneaza segmentul cu t.draw(lungime).
-    - Astfel nu este nevoie sa stim pozitia absoluta - doar directia relativa.
+  Tehnica de desen:
+    - Se deseneaza direct o polilinie GL_LINE_STRIP prin punctele d -> a -> b -> c.
+    - Astfel evitam calcule suplimentare in bucla
 */
 void hexLeaf(double px, double py, double vAngle, double length, double angleOffset) {
   double ang = vAngle + angleOffset;
@@ -426,18 +423,12 @@ void hexLeaf(double px, double py, double vAngle, double length, double angleOff
   double dx = px + cos(ang + 4*pi/3)  * L;
   double dy = py + sin(ang + 4*pi/3)  * L;
 
-  // Draw strip d→a→b→c using turtle polyline trick (rotate+draw per segment).
-  double segs[4][2] = {{dx,dy},{ax,ay},{bx,by},{cx,cy}};
-  Turtle t(dx, dy);
-  double curAngle = 0.0;
-  for(int ii = 1; ii < 4; ++ii) {
-    double ddx = segs[ii][0] - segs[ii-1][0];
-    double ddy = segs[ii][1] - segs[ii-1][1];
-    double segAngle = atan2(ddy, ddx);
-    t.rotate(segAngle - curAngle);
-    t.draw(hypot(ddx, ddy));
-    curAngle = segAngle;
-  }
+  glBegin(GL_LINE_STRIP);
+    glVertex2d(dx, dy);
+    glVertex2d(ax, ay);
+    glVertex2d(bx, by);
+    glVertex2d(cx, cy);
+  glEnd();
 }
 
 /*
@@ -566,10 +557,19 @@ protected:
       upon radius breach. So, a return value of 0 means estimated-divergence, other values
       mean speed of estimated convergence.
     */
+    FloatType zr = z.real();
+    FloatType zi = z.imag();
+    const FloatType cr = c.real();
+    const FloatType ci = c.imag();
+    const FloatType maxRadiusSq = FloatType(maxRadius * maxRadius);
+
     //We create a number sequence, and estimate its limit.
     for(int ii = maxIteration; ii > 0; --ii) {
-      z = z * z + c;
-      if(abs(z) > maxRadius)
+      const FloatType zr2 = zr * zr;
+      const FloatType zi2 = zi * zi;
+      zi = FloatType(2) * zr * zi + ci;
+      zr = zr2 - zi2 + cr;
+      if((zr * zr + zi * zi) > maxRadiusSq)
 	return(ii);
     }
     return 0;
@@ -627,10 +627,19 @@ public:
 
   // Mandelbrot: z0=0, c=point (swap roles vs JF)
   virtual inline int test(std::complex<FloatType> z, std::complex<FloatType> c, double maxRadius = 2, int maxIteration = 50) override {
-    std::complex<FloatType> zz(0, 0);
+    (void)c;
+    FloatType zr = FloatType(0);
+    FloatType zi = FloatType(0);
+    const FloatType cr = z.real();
+    const FloatType ci = z.imag();
+    const FloatType maxRadiusSq = FloatType(maxRadius * maxRadius);
+
     for(int ii = maxIteration; ii > 0; --ii) {
-      zz = zz * zz + z; // z is the screen point used as c
-      if(std::abs(zz) > maxRadius) return ii;
+      const FloatType zr2 = zr * zr;
+      const FloatType zi2 = zi * zi;
+      zi = FloatType(2) * zr * zi + ci;
+      zr = zr2 - zi2 + cr;
+      if((zr * zr + zi * zi) > maxRadiusSq) return ii;
     }
     return 0;
   }
@@ -658,24 +667,26 @@ public:
     glEnd();
   }
 
-  // HSV to RGB helper (S=1, V=1)
-  void hsvToRgb(float hue, float &r, float &g, float &b) {
+  // HSV to RGB helper
+  void hsvToRgb(float hue, float saturation, float value, float &r, float &g, float &b) {
     hue = fmod(hue, 360.0f);
     if(hue < 0) hue += 360.0f;
     int sector = int(hue / 60.0f) % 6;
     float f = hue / 60.0f - float(sector);
-    float q = 1.0f - f;
+    float p = value * (1.0f - saturation);
+    float q = value * (1.0f - saturation * f);
+    float t = value * (1.0f - saturation * (1.0f - f));
     switch(sector) {
-      case 0: r=1;   g=f;   b=0;   break;
-      case 1: r=q;   g=1;   b=0;   break;
-      case 2: r=0;   g=1;   b=f;   break;
-      case 3: r=0;   g=q;   b=1;   break;
-      case 4: r=f;   g=0;   b=1;   break;
-      default:r=1;   g=0;   b=q;   break;
+      case 0: r=value; g=t;     b=p;     break;
+      case 1: r=q;     g=value; b=p;     break;
+      case 2: r=p;     g=value; b=t;     break;
+      case 3: r=p;     g=q;     b=value; break;
+      case 4: r=t;     g=p;     b=value; break;
+      default:r=value; g=p;     b=q;     break;
     }
   }
 
-  // Gradient draw: HSV rainbow — blue (far from set) → green → red (near boundary), inside=black
+  // Gradient draw: HSV rainbow — dark blue (far) -> cyan -> green -> yellow -> red (near boundary), inside=black
   void drawGradient(FloatType l, FloatType rt, FloatType bot, FloatType top, int sph, int spv) {
     glPointSize(1);
     FloatType stepx = (this->m_xmax - this->m_xmin) / FloatType(sph);
@@ -692,11 +703,15 @@ public:
         if(it == 0) {
           // inside the set: black (skip drawing, black bg shows through)
         } else {
-          // hue: 240=blue (fast escape/far) down to 0=red (slow escape/near boundary)
-          float t = float(it) / float(this->m_maxIteration);
-          float hue = 240.0f * t;
+          // escaped = iterations USED before escape: ~0=far from set, ~maxIter=near boundary
+          int escaped = this->m_maxIteration - it;
+          float t = float(escaped) / float(this->m_maxIteration); // 0=far, 1=near boundary
+          // hue: 240=blue (far) -> 180=cyan -> 120=green -> 60=yellow -> 0=red (near boundary)
+          float hue = 240.0f - 240.0f * t;
+          float saturation = 0.75f + 0.25f * t;
+          float value = 0.5f + 0.5f * sqrtf(t);
           float cr, cg, cb;
-          hsvToRgb(hue, cr, cg, cb);
+          hsvToRgb(hue, saturation, value, cr, cg, cb);
           glColor3f(cr, cg, cb);
           glVertex2d(h, v);
         }
