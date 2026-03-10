@@ -701,7 +701,9 @@ public:
         z.real(x);
         int it = this->test(z, this->m_c, this->m_maxRadius, this->m_maxIteration);
         if(it == 0) {
-          // inside the set: black (skip drawing, black bg shows through)
+          // Inside Mandelbrot: punctul NU a depasit raza de escape in maxIteration.
+          // In zona centrala majoritatea punctelor sunt in multime, deci nu le desenam.
+          // Cum fundalul e negru, centrul apare negru.
         } else {
           // escaped = iterations USED before escape: ~0=far from set, ~maxIter=near boundary
           int escaped = this->m_maxIteration - it;
@@ -766,6 +768,12 @@ void Display5() {
       * t≈0.5 (distanta medie):        hue=120 => verde
       * t≈1 (aproape de granita):      hue=0   => rosu
     Culoarea finala RGB se calculeaza din HSV cu saturatie=1, luminozitate=1.
+
+  De ce e negru in centru la Mandelbrot (Display6):
+    - centrul figurii corespunde in mare parte punctelor din INTERIORUL multimii,
+      adica puncte care nu diverge in numarul de iteratii ales (it == 0)
+    - pentru aceste puncte codul nu deseneaza nimic (doar punctele din exterior au gradient)
+    - fundalul este setat explicit la negru, deci "nimic desenat" = negru vizibil
 
   Punctele DIN interiorul multimii nu se deseneaza => fundalul negru ramane vizibil.
   Fundalul este setat la negru cu glClearColor(0,0,0,1) la inceputul functiei.

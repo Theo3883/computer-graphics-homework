@@ -209,6 +209,10 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
 % -----------------------------------------------------------------
 % EXEMPLU 2.3: f(x)=|sin(x)|*exp(-sin(x)), esantionare implicita.
 % Aici aratam cum arata un grafic atunci cand nu cerem smooth/samples mare.
+% "smooth" NU adauga puncte noi reale; doar uneste mai estetic punctele deja
+% evaluate. Daca ai putine samples, curba poate parea frumoasa dar inexacta.
+% "samples" controleaza cate puncte sunt evaluate din functie pe domeniu.
+% Mai multe samples = fidelitate mai buna, dar compilare mai lenta.
 % -----------------------------------------------------------------
 \begin{frame}
   \begin{figure}
@@ -231,7 +235,12 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
 
 % -----------------------------------------------------------------
 % EXEMPLU 2.4: Acelasi grafic, dar cu "smooth".
-% Smooth doar interpoleaza vizual; nu creste neaparat fidelitatea numerica.
+% Smooth doar interpoleaza vizual; nu creste automat fidelitatea numerica.
+% Diferenta practica intre samples uzuale:
+%  - samples=100: rapid, bun pentru preview; pot aparea colturi/artefacte.
+%  - samples=1000: de obicei echilibru bun calitate/timp.
+%  - samples=10000: foarte fin pe functii dificile, dar cost mare la compilare.
+% Regula: cresti samples cand vezi rupturi/aliasing, nu "din reflex".
 % -----------------------------------------------------------------
 \begin{frame}
   \begin{figure}
@@ -308,9 +317,11 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
 % EXEMPLU 3: Polar simplu (spirala in coordonate polare).
 % Sintaxa PGFPlots polar: (unghi, raza).
 % Diferența dintre \addplot și \addplot+:
-%   - \addplot adaugă un plot folosind doar opțiunile locale date la acel plot.
-%   - \addplot+ adaugă un plot și "moștenește" opțiunile globale ale axei, permițând suprascrierea/adaosul la acestea.
-%   - Practic, \addplot+ combină opțiunile globale cu cele locale, \addplot folosește doar localele.
+%   - \addplot: traseaza curba cu optiunile plotului curent.
+%   - \addplot+: ia stilul curent al ciclului (cycle list) + optiunile locale;
+%     util cand vrei stiluri coerente intre mai multe curbe fara sa le scrii manual.
+% "mark=none": dezactiveaza simbolurile de punct (cerculete/patrate) si lasa
+% doar linia. E util la serii dense, ca sa nu incarci vizual graficul.
 % -----------------------------------------------------------------
 \begin{frame}
 \begin{figure}
@@ -374,7 +385,9 @@ mpg,cylinders,displacement,horsepower,weight,acceleration,model_year,origin,name
           (180, 15)
           (220, 14)
         };
-        %try removing only marks
+        % "only marks" = afiseaza doar puncte.
+        % Daca vrei invers (doar linie), folosesti de regula mark=none.
+        % Exemplu: \addplot [x=horsepower,y=mpg,col sep=comma,mark=none] {mpg.csv};
         \addplot table [x=horsepower, y=mpg, col sep=comma, only marks] {mpg.csv};
     \end{axis} 
     \end{tikzpicture}
