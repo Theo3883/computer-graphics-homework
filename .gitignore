@@ -40,7 +40,7 @@ Makefile
 
 main.cpp
 
-# LaTeX generated files (keep only sg2.tex and sg2.pdf)
+# LaTeX generated files
 mpg.csv
 *.aux
 *.log
@@ -48,3 +48,9 @@ mpg.csv
 *.out
 *.snm
 *.toc
+
+*.pgf-plot.gnuplot
+*.pgf-plot.table
+*contourtmp*.dat
+*contourtmp*.script
+*contourtmp*.table
