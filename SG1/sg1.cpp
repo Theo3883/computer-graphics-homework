@@ -1,537 +1,667 @@
 /*
-  Acest program deseneaza diferite functii si curbe 2D parametrice
-  folosind biblioteca OpenGL (prin intermediul GLUT).
+  This program plots different 2D functions.
 */
 
 #include <cstdlib>
 #include <cmath>
 #include <cfloat>
 #include <iostream>
-
-// Includerea corecta a bibliotecii GLUT in functie de sistemul de operare
-#if defined(__APPLE__)
+//#include "glut.h" //MSVC local library install
+#ifdef __APPLE__
 #include <GLUT/glut.h>
 #else
-#include <GL/glut.h>
+#include "glut.h" //system-wide install (or compiler default path)
 #endif
 
-// Constante matematice utile
-double circle = atan(1) * 8;     // Echivalent cu 2 * PI
-double halfCircle = atan(1) * 4; // Echivalent cu PI
-double tau = circle;             // 2 * PI = TAU
-double pi = halfCircle;          // TAU / 2 = PI
+double circle = atan(1) * 8;
+double halfCircle = atan(1) * 4;
+double tau = circle; // 2 * PI = TAU
+double pi = halfCircle; // TAU / 2 = PI
+double epsilon = 1e-15;
 
-// 'step' defineste rezolutia curbei. Un pas mai mic = o curba mai lina (mai multe puncte calculate).
+//How often should the drawing algorithm sample the function.
 double step = 0.05;
 
-// Dimensiunile initiale ale ferestrei
-int defaultW = 1000, defaultH = 1000;
-int viewportPadding = 24;
 
-// Variabila pentru a retine ultima tasta apasata, utila pentru a sti ce curba sa redesenam
+int defaultW = 1000, defaultH = 1000;
+
 unsigned char prevKey;
 
 /*
-   1) Concoida lui Nicomede
+   Nicomedes' Conchoid
+   $x = a + b \cdot cos(t), y = a \cdot tg(t) + b \cdot sin(t)$. or
+   $x = a - b \cdot cos(t), y = a \cdot tg(t) - b \cdot sin(t)$. where
+   $t \in (-\pi / 2, \pi / 2)$
 */
-void Display1()
-{
-  double xmax, ymax, xmin, ymin;
+void Display1() {
+    double xmax, ymax, xmin, ymin;
+    /*
+      Nicomedes' Conchoid is a family of functions. These two parameters,
+      a and b, choose a specific 2D function from that family.
+      It has two branches, so, for each y, we have two x values.
+      Therefore, we're actually drawing two lines, not one.
+     */
+    double a = 1, b = 2;
 
-  // Parametrii 'a' si 'b' definesc forma exacta a concoidei
-  double a = 1, b = 2;
-  double step = 0.05;
+    /*
+      We shadow the global variable with a different step size,
+      as values different from 0.05
+      would yield a significantly different plot.
+    */
+    double step = 0.05;
 
-  // Pasul 1: Calculam extinderea maxima a functiei pe axele X si Y
-  // pentru a sti cum sa o scalam incat sa incapa in fereastra OpenGL [-1, 1]
-  xmax = a - b - 1;
-  xmin = a + b + 1;
-  ymax = ymin = 0;
+    /*
+      First, we compute the points of the function, so we can determine
+      the maximal extend of the drawing.
+     */
+    xmax = a - b - 1;
+    xmin = a + b + 1;
+    ymax = ymin = 0;
+    for (double t = -pi / 2 + step; t < pi / 2; t += step) {
+        double x1, y1, x2, y2;
+        x1 = a + b * cos(t);
+        xmax = (xmax < x1) ? x1 : xmax;
+        xmin = (xmin > x1) ? x1 : xmin;
 
-  for (double t = -pi / 2 + step; t < pi / 2; t += step)
-  {
-    double x1, y1, x2, y2;
-    // Ramura 1
-    x1 = a + b * cos(t);
-    xmax = (xmax < x1) ? x1 : xmax;
-    xmin = (xmin > x1) ? x1 : xmin;
+        x2 = a - b * cos(t);
+        xmax = (xmax < x2) ? x2 : xmax;
+        xmin = (xmin > x2) ? x2 : xmin;
 
-    // Ramura 2
-    x2 = a - b * cos(t);
-    xmax = (xmax < x2) ? x2 : xmax;
-    xmin = (xmin > x2) ? x2 : xmin;
+        y1 = a * tan(t) + b * sin(t);
+        ymax = (ymax < y1) ? y1 : ymax;
+        ymin = (ymin > y1) ? y1 : ymin;
 
-    // Y pentru ambele ramuri
-    y1 = a * tan(t) + b * sin(t);
-    ymax = (ymax < y1) ? y1 : ymax;
-    ymin = (ymin > y1) ? y1 : ymin;
-
-    y2 = a * tan(t) - b * sin(t);
-    ymax = (ymax < y2) ? y2 : ymax;
-    ymin = (ymin > y2) ? y2 : ymin;
-  }
-
-  // Ne intereseaza valoarea absoluta maxima pentru a face o scalare uniforma fata de origine (0,0)
-  xmax = (fabs(xmax) > fabs(xmin)) ? fabs(xmax) : fabs(xmin);
-  ymax = (fabs(ymax) > fabs(ymin)) ? fabs(ymax) : fabs(ymin);
-
-  // Setam culoarea desenului (Rosu) - valorile sunt R, G, B in intervalul [0, 1]
-  glColor3f(1, 0.1, 0.1);
-
-  // Pasul 2: Desenam prima ramura
-  glBegin(GL_LINE_STRIP); // GL_LINE_STRIP uneste punctele consecutive cu linii
-  for (double t = -pi / 2 + step; t < pi / 2; t += step)
-  {
-    // Impartim la xmax si ymax pentru a "tasa" curba in intervalul [-1, 1] al ecranului
-    double x1 = (a + b * cos(t)) / xmax;
-    double y1 = (a * tan(t) + b * sin(t)) / ymax;
-    glVertex2d(x1, y1); // Adaugam punctul in lista de desenare
-  }
-  glEnd();
-
-  // Pasul 3: Desenam a doua ramura
-  glBegin(GL_LINE_STRIP);
-  for (double t = -pi / 2 + step; t < pi / 2; t += step)
-  {
-    double x2 = (a - b * cos(t)) / xmax;
-    double y2 = (a * tan(t) - b * sin(t)) / ymax;
-    glVertex2d(x2, y2);
-  }
-  glEnd();
-}
-
-// 2) Graficul functiei modul de sin(x) inmultit cu e^(-sin(x))
-void Display2()
-{
-  double xmax = 8 * pi;
-  // ymax este setat la exp(1.1) pentru a oferi putin spatiu deasupra curbei
-  // (valoarea maxima reala e mai mica decat e^1, dar asa ne asiguram ca nu atinge marginea de sus).
-  double ymax = exp(1.1);
-
-  glColor3f(1, 0.1, 0.1);
-  glBegin(GL_LINE_STRIP);
-  for (double x = 0; x < xmax; x += step)
-  {
-    double x1 = x / xmax;                             // Scalare pe X (va desena doar pe jumatatea dreapta a ecranului [0, 1])
-    double y1 = (fabs(sin(x)) * exp(-sin(x))) / ymax; // Scalare pe Y
-    glVertex2d(x1, y1);
-  }
-  glEnd();
-}
-
-/* 3)
-   Functie definita pe ramuri, utilizeaza distanta pana la cel mai apropiat intreg.
- */
-void Display3()
-{
-  double xmax = 20.0;
-  double ymax = 1.0;
-  double step = 0.01;
-
-  glColor3f(1, 0.1, 0.1);
-  glBegin(GL_LINE_STRIP);
-
-  // Punctul de start definit manual pentru a evita impartirea la 0
-  glVertex2d(0.0, 1.0);
-
-  for (double x = step; x <= xmax; x += step)
-  {
-    // Calculam distanta pana la cel mai apropiat intreg
-    double frac = x - floor(x);
-    double d = (frac <= 0.5) ? frac : (1.0 - frac);
-    double y = d / x;
-
-    // x / xmax scaleaza graficul de la [0, 20] la [0, 1]
-    glVertex2d(x / xmax, y / ymax);
-  }
-  glEnd();
-}
-
-/*
-  Functie utilitara creata de tine pentru a nu repeta codul de scalare si desenare
-  pentru curbele parametrice care folosesc 2 functii (fx, fy).
-*/
-void plot(double (*fx)(double, double, double), double (*fy)(double, double, double),
-          double a, double b, double intervalStart, double intervalEnd,
-          double step = 0.01, double scaleX = 1, double scaleY = 1,
-          GLint primitive = GL_LINE_STRIP)
-{
-  // Daca factorii de scalare sunt 0, ii calculam automat cautand maximele
-  if (scaleX == 0 || scaleY == 0)
-  {
-    double xmax = 0, ymax = 0;
-    for (double t = intervalStart; t <= intervalEnd; t += step)
-    {
-      double xv = fx(a, b, t);
-      double yv = fy(a, b, t);
-      if (fabs(xv) > xmax)
-        xmax = fabs(xv);
-      if (fabs(yv) > ymax)
-        ymax = fabs(yv);
+        y2 = a * tan(t) - b * sin(t);
+        ymax = (ymax < y2) ? y2 : ymax;
+        ymin = (ymin > y2) ? y2 : ymin;
     }
-    if (scaleX == 0)
-      scaleX = (xmax > 0) ? xmax : 1;
-    if (scaleY == 0)
-      scaleY = (ymax > 0) ? ymax : 1;
-  }
+    //We care about the maximal extent on each axis (from the origin).
+    xmax = (fabs(xmax) > fabs(xmin)) ? fabs(xmax) : fabs(xmin);
+    ymax = (fabs(ymax) > fabs(ymin)) ? fabs(ymax) : fabs(ymin);
 
-  glColor3f(1, 0.1, 0.1);
-  glBegin(primitive);
-  for (double t = intervalStart; t <= intervalEnd; t += step)
-  {
-    // Generam punctele, le scalam direct si le trimitem catre OpenGL
-    double xv = fx(a, b, t) / scaleX;
-    double yv = fy(a, b, t) / scaleY;
-    glVertex2d(xv, yv);
-  }
-  glEnd();
-}
+    /*
+      Since we have, for x and for y, the maximal absolute values,
+      dividing the coordinates of the points by these values will
+      ensure we draw the whole function inside [-1, 1]^2, the default
+      OpenGL screen.
+     */
 
-// --- Definitiile matematice ale curbelor parametrice ---
-
-// Melcul lui Pascal (Limacon)
-double limacon_x(double a, double b, double t) { return 2 * (a * cos(t) + b) * cos(t); }
-double limacon_y(double a, double b, double t) { return 2 * (a * cos(t) + b) * sin(t); }
-
-// Cicloida
-double cycloid_x(double a, double b, double t) { return a * t - b * sin(t); }
-double cycloid_y(double a, double b, double t) { return a - b * cos(t); }
-
-// Epicicloida
-double epicycloid_x(double a, double b, double t)
-{
-  double ratio = b / a;
-  return (a + b) * cos(ratio * t) - b * cos(t + ratio * t);
-}
-double epicycloid_y(double a, double b, double t)
-{
-  double ratio = b / a;
-  return (a + b) * sin(ratio * t) - b * sin(t + ratio * t);
-}
-
-// Hipocicloida
-double hypocycloid_x(double a, double b, double t)
-{
-  double ratio = b / a;
-  return (a - b) * cos(ratio * t) - b * cos(t - ratio * t);
-}
-double hypocycloid_y(double a, double b, double t)
-{
-  double ratio = b / a;
-  return (a - b) * sin(ratio * t) - b * sin(t - ratio * t);
-}
-
-// Spirala logaritmica (convertita din coordonate polare in carteziene: x = r*cos(t), y = r*sin(t))
-double logspiral_x(double a, double b, double t)
-{
-  double r = a * exp(1 + t);
-  return r * cos(t);
-}
-double logspiral_y(double a, double b, double t)
-{
-  double r = a * exp(1 + t);
-  return r * sin(t);
-}
-
-// Floare in coordonate polare (Sine polar flower)
-double sineflower_x(double a, double b, double t)
-{
-  double r = sin(a * t);
-  return r * cos(t);
-}
-double sineflower_y(double a, double b, double t)
-{
-  double r = sin(a * t);
-  return r * sin(t);
-}
-
-// Apelurile propriu-zise folosind functia utilitara 'plot'
-void Display4() { plot(limacon_x, limacon_y, 0.3, 0.2, -pi, pi, 0.001, 0, 0, GL_LINE_LOOP); }
-void Display5()
-{
-  double a = 0.1;
-  double b = 0.2;
-  double tStart = -pi;
-  double tEnd = 5 * pi;
-  double localStep = 0.01;
-
-  double xmin = DBL_MAX, xmax = -DBL_MAX;
-  double ymin = DBL_MAX, ymax = -DBL_MAX;
-  for (double t = tStart; t <= tEnd; t += localStep)
-  {
-    double x = cycloid_x(a, b, t);
-    double y = cycloid_y(a, b, t);
-    if (x < xmin)
-      xmin = x;
-    if (x > xmax)
-      xmax = x;
-    if (y < ymin)
-      ymin = y;
-    if (y > ymax)
-      ymax = y;
-  }
-
-  double xCenter = (xmin + xmax) * 0.5;
-  double yCenter = (ymin + ymax) * 0.5;
-  double xRange = xmax - xmin;
-  double yRange = ymax - ymin;
-  if (xRange == 0)
-    xRange = 1;
-  if (yRange == 0)
-    yRange = 1;
-
-  double targetWidth = 1.8;
-  double targetHeight = 0.42;
-  double yOffset = -0.02;
-
-  glColor3f(1.0f, 0.1f, 0.1f);
-  glBegin(GL_LINE_STRIP);
-  for (double t = tStart; t <= tEnd; t += localStep)
-  {
-    double x = cycloid_x(a, b, t);
-    double y = cycloid_y(a, b, t);
-
-    double xn = (x - xCenter) * (targetWidth / xRange);
-    double yn = (y - yCenter) * (targetHeight / yRange) + yOffset;
-    glVertex2d(xn, yn);
-  }
-  glEnd();
-}
-void Display6() { plot(epicycloid_x, epicycloid_y, 0.1, 0.3, 0, tau, 0.01, 0, 0); }
-void Display7() { plot(hypocycloid_x, hypocycloid_y, 0.1, 0.3, 0, tau, 0.01, 0, 0); }
-void Display8()
-{
-  double a = 0.02;
-  double tStart = 4.1;
-  double tEnd = -0.3;
-  double localStep = 0.002;
-
-  double xmin = DBL_MAX, xmax = -DBL_MAX;
-  double ymin = DBL_MAX, ymax = -DBL_MAX;
-  for (double t = tEnd; t <= tStart; t += localStep)
-  {
-    double x = logspiral_x(a, 0, t);
-    double y = logspiral_y(a, 0, t);
-    if (x < xmin)
-      xmin = x;
-    if (x > xmax)
-      xmax = x;
-    if (y < ymin)
-      ymin = y;
-    if (y > ymax)
-      ymax = y;
-  }
-
-  double xCenter = (xmin + xmax) * 0.5;
-  double yCenter = (ymin + ymax) * 0.5;
-  double xRange = xmax - xmin;
-  double yRange = ymax - ymin;
-  if (xRange == 0)
-    xRange = 1;
-  if (yRange == 0)
-    yRange = 1;
-
-  double targetWidth = 0.95;
-  double targetHeight = 1.1;
-  double xOffset = -0.45;
-  double yOffset = -0.2;
-
-  glColor3f(1.0f, 0.1f, 0.1f);
-  glBegin(GL_LINE_STRIP);
-  for (double t = tStart; t >= tEnd; t -= localStep)
-  {
-    double x = logspiral_x(a, 0, t);
-    double y = logspiral_y(a, 0, t);
-
-    double xn = (x - xCenter) * (targetWidth / xRange) + xOffset;
-    double yn = (y - yCenter) * (targetHeight / yRange) + yOffset;
-    glVertex2d(xn, yn);
-  }
-  glEnd();
-}
-void Display9() { plot(sineflower_x, sineflower_y, 10, 0, 0, 2 * pi, 0.001, 0, 0); }
-
-/*
-  10) Trisectoarea lui Longchamps (Trefla Echilaterala):
-  Am implementat aceasta functie bazandu-ma pe descrierea ta matematica.
-*/
-void Display10()
-{
-  double a = 0.2;
-  double step = 0.005;
-
-  // Conform comentariului tau, bucla centrala (o frunza) se formeaza pentru t in (-pi/6, pi/6)
-  // Folosesc un "epsilon" (0.01) pentru a evita impartirea la zero fix in asimptote.
-  double t_start = -pi / 6 + 0.01;
-  double t_end = pi / 6 - 0.01;
-
-  // Calculam factorul de scalare o singura data pentru o frunza
-  double xmax = 0, ymax = 0;
-  for (double t = t_start; t <= t_end; t += step)
-  {
-    double numitor = 4 * cos(t) * cos(t) - 3;
-    double x = a / numitor;
-    double y = (a * tan(t)) / numitor;
-    if (fabs(x) > xmax)
-      xmax = fabs(x);
-    if (fabs(y) > ymax)
-      ymax = fabs(y);
-  }
-  double scaleFactor = (xmax > ymax) ? xmax : ymax;
-  // Oprim impartirea la zero in caz de eroare matematica
-  if (scaleFactor == 0)
-    scaleFactor = 1.0;
-
-  // Desenam de 3 ori (pentru a crea cele 3 frunze ale treflei) rotind sistemul de coordonate
-  for (int i = 0; i < 3; ++i)
-  {
-    glPushMatrix(); // Salvam sistemul de coordonate curent
-
-    // Rotim matricea curenta cu 0, 120 si respectiv 240 de grade (OpenGL foloseste grade, nu radiani aici!)
-    // Rotatia se face in jurul axei Z (0, 0, 1) pentru un desen 2D
-    glRotatef(i * 120.0, 0.0, 0.0, 1.0);
-
-    glColor3f(1.0, 0.1, 0.1); // Culoare rosie
+    glColor3f(1.0f, 0.0f, 0.0f);
     glBegin(GL_LINE_STRIP);
-    for (double t = t_start; t <= t_end; t += step)
-    {
-      double numitor = 4 * cos(t) * cos(t) - 3;
-      double x = (a / numitor) / scaleFactor;
-      double y = ((a * tan(t)) / numitor) / scaleFactor;
-      glVertex2d(x, y);
+    for (double t = -pi / 2 + step; t < pi / 2; t += step) {
+        double x1, y1, x2, y2; //You might get some warnings in your IDE. Why?
+        x1 = (a + b * cos(t)) / xmax;
+        x2 = (a - b * cos(t)) / xmax;
+        y1 = (a * tan(t) + b * sin(t)) / ymax;
+        y2 = (a * tan(t) - b * sin(t)) / ymax;
+
+        glVertex2d(x1, y1);
     }
     glEnd();
 
-    glPopMatrix(); // Restauram sistemul de coordonate initial pentru urmatoarea frunza
-  }
+    glBegin(GL_LINE_STRIP);
+    for (double t = -pi / 2 + step; t < pi / 2; t += step) {
+        double x1, y1, x2, y2;
+        x1 = (a + b * cos(t)) / xmax;
+        x2 = (a - b * cos(t)) / xmax;
+        y1 = (a * tan(t) + b * sin(t)) / ymax;
+        y2 = (a * tan(t) - b * sin(t)) / ymax;
+
+        glVertex2d(x2, y2);
+    }
+    glEnd();
 }
 
-// Functia de initializare a contextului OpenGL
-void init(void)
-{
-  glClearColor(1.0, 1.0, 1.0, 1.0); // Fundal alb
-  glLineWidth(2);                   // Grosimea liniei
-  glPointSize(1);                   // Dimensiunea punctului
+// $f(x) = \left| sin(x) \right| \cdot e^{-sin(x)}, x \in \left[ 0, 8 \cdot \pi \right]$, 
+void Display2() {
+    /*
+      We can determine how far the function extends
+      (and thus the needed scaling factors)
+      by looking at the function and doing a bit of Calculus.
+    */
+    double xmax = 8 * pi;
+    double ymax = exp(1.1); //Why 1.1?
 
-  // Setari pentru netezirea liniilor (Antialiasing)
-  glEnable(GL_SMOOTH);
-  glEnable(GL_POINT_SMOOTH);
-  glEnable(GL_LINE_SMOOTH);
-  glEnable(GL_POLYGON_SMOOTH);
-  glHint(GL_NICEST, GL_POINT_SMOOTH_HINT);
-  glHint(GL_NICEST, GL_LINE_SMOOTH_HINT);
-  glHint(GL_NICEST, GL_POLYGON_SMOOTH_HINT);
-
-  // Activam blending-ul (necesar pentru antialiasing)
-  glEnable(GL_BLEND);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glColor3f(1, 0.1, 0.1);
+    glBegin(GL_LINE_STRIP);
+    for (double x = 0; x < xmax; x += step) {
+        double x1, y1;
+        x1 = x / xmax;
+        y1 = (fabs(sin(x)) * exp(-sin(x))) / ymax;
+        glVertex2d(x1, y1);
+    }
+    glEnd();
 }
 
-// Functia principala de randare care este apelata la fiecare "cadru"
-void Display(void)
-{
-  std::cout << ("Call Display") << std::endl;
+/* 1)
+   \( f(x) =
+     \left\{
+       \begin{array}{cl}
+         1              & x = 0   \\
+         \frac{d(x)}{x} & x \gt 0 \\
+       \end{array}
+     \right.
+   \)
+ */
+void Display3() {
+    double xMin = 0, xMax = 20;
+    double yMin = 1000, yMax = 0;
+    
+    for (double x = xMin; x <= xMax; x += step) {
+        double dx = fabs(x - round(x));
+        double y;
+        if (x == 0)
+            y = 1;
+        else
+            y = dx / x;
+        
+        yMax = (yMax < y) ? y : yMax;
+        yMin = (yMin > y) ? y : yMin;
+    }
 
-  // Curatam ecranul cu culoarea de fundal setata in init()
-  glClear(GL_COLOR_BUFFER_BIT);
-
-  // In functie de ultima tasta apasata, apelam functia de desenare corespunzatoare
-  switch (prevKey)
-  {
-  case '1':
-    Display1();
-    break;
-  case '2':
-    Display2();
-    break;
-  case '3':
-    Display3();
-    break;
-  case '4':
-    Display4();
-    break;
-  case '5':
-    Display5();
-    break;
-  case '6':
-    Display6();
-    break;
-  case '7':
-    Display7();
-    break;
-  case '8':
-    Display8();
-    break;
-  case '9':
-    Display9();
-    break;
-  case '0':
-    Display10();
-    break;
-  default:
-    break; // Nu deseneaza nimic daca e alta tasta
-  }
-
-  // Fortam executia comenzilor OpenGL in placa video
-  glFlush();
+    yMax = (fabs(yMax) > fabs(yMin)) ? fabs(yMax) : fabs(yMin);
+ 
+    glColor3f(1.0f, 0.0f, 0.0f);
+    glBegin(GL_LINE_STRIP);
+    for (double x = xMin; x <= xMax; x += step) {
+        double x1, y1;
+        if (x == 0) {
+            y1 = 1 / yMax;
+        }
+        else {
+            double dx = fabs(x - round(x));
+            y1 = (dx / x) / yMax;
+        }
+        x1 = x / xMax;
+        glVertex2d(x1 * 0.9, y1 * 0.9);
+    }
+    glEnd();
 }
 
-// Se apeleaza cand fereastra este redimensionata de catre utilizator
-void Reshape(int w, int h)
-{
-  // Aplicam padding real pe toate laturile prin restrangerea viewport-ului
-  int viewW = w - 2 * viewportPadding;
-  int viewH = h - 2 * viewportPadding;
+//3) function arguments e.g.: f(a, b, t), where a and b are function family parameters, and the is the driving variables.
+void plot(double (*x)(double, double, double), double (*y)(double, double, double), double a, double b, double intervalStart, double intervalEnd, double step = 0.01, double scaleX = 1, double scaleY = 1, GLint primitive = GL_LINE_STRIP) {
 
-  if (viewW < 1)
-    viewW = 1;
-  if (viewH < 1)
-    viewH = 1;
+    // glColor3f(1.0f, 0.08f, 0.58f);
+    glBegin(primitive);
+    for (double t = intervalStart; t < intervalEnd; t += step) {
+        double x1, y1;
+        x1 = x(t, a, b) / scaleX;
+        y1 = y(t, a, b) / scaleY;
 
-  glViewport(viewportPadding, viewportPadding, (GLsizei)viewW, (GLsizei)viewH);
+        //variabile pentru a colora graficul
+        float factor = (float)(t / tau);
+        float r = 1.0f + factor * (0.2f - 1.0f);
+        float g = 0.0f + factor * (0.1f - 0.0f);
+        float b_col = 0.0f + factor * (0.1f - 0.0f);
+
+        glColor3f(r, g, b_col);
+
+        glVertex2d(x1 * 0.95, y1 * 0.95);
+    }
+
+    glEnd();
 }
 
-// Gestioneaza intrarile de la tastatura
-void KeyboardFunc(unsigned char key, int x, int y)
-{
-  prevKey = key;
-  if (key == 27) // Codul ASCII pentru tasta ESC
-    exit(0);
+/*
+  2) Circle Concoid (Limaçon, Pascal's Snail):
+  \(x = 2 \cdot (a \cdot cos(t) + b) \cdot cos(t), \; y = 2 \cdot (a \cdot cos(t) + b) \cdot sin(t), \; t \in (-\pi, \pi)\) .
+  For this plot, \(a = 0.3, \; b = 0.2\) .
+*/
 
-  // Spune sistemului GLUT "Hei, variabilele mele s-au schimbat, redeseneaza fereastra!"
-  // Fara aceasta linie, apasarea unei taste nu s-ar reflecta vizual imediat.
-  glutPostRedisplay();
+double xCircleConcoid(double t, double a, double b) {
+    return 2 * (a * cos(t) + b) * cos(t);
 }
 
-// Gestioneaza click-urile de mouse (doar afiseaza in consola deocamdata)
-void MouseFunc(int button, int state, int x, int y)
-{
-  std::cout << "Mouse button ";
-  std::cout << ((button == GLUT_LEFT_BUTTON) ? "left" : ((button == GLUT_RIGHT_BUTTON) ? "right" : "middle")) << " ";
-  std::cout << ((state == GLUT_DOWN) ? "pressed" : "released");
-  std::cout << " at coordinates: " << x << " x " << y << std::endl;
+double yCircleConcoid(double t, double a, double b) {
+    return 2 * (a * cos(t) + b) * sin(t);
 }
 
-int main(int argc, char **argv)
-{
-  // Initializam biblioteca GLUT
-  glutInit(&argc, argv);
-  glutInitWindowSize(defaultW, defaultH);
-  glutInitWindowPosition(-1, -1);
-  // Folosim un singur buffer de culoare (SINGLE) si spatiu de culoare RGBA
-  glutInitDisplayMode(GLUT_SINGLE | GLUT_RGBA);
-  glutCreateWindow(argv[0]); // Titlul ferestrei (numele executabilului)
 
-  init(); // Apelam functia noastra de setari vizuale
+void Display4() {
+    double a = 0.3, b = 0.2;
+    
+    double xMin = 1000, xMax = 0;
+    double yMin = 1000, yMax = 0;
 
-  // Inregistram functiile "callback" - ii spunem lui GLUT ce functii sa apeleze cand apar anumite evenimente
-  glutReshapeFunc(Reshape);
-  glutKeyboardFunc(KeyboardFunc);
-  glutMouseFunc(MouseFunc);
-  glutDisplayFunc(Display);
+    for (double t = -pi + epsilon; t < pi; t += step) {
+        double x1, y1;
+        x1 = xCircleConcoid(t, a, b);
+        y1 = yCircleConcoid(t, a, b);
 
-  // Intram in bucla infinita care asculta dupa evenimente si redeseneaza ecranul
-  glutMainLoop();
+        xMax = (xMax < x1) ? x1 : xMax;
+        xMin = (xMin > x1) ? x1 : xMin;
 
-  return 0;
+        yMax = (yMax < y1) ? y1 : yMax;
+        yMin = (yMin > y1) ? y1 : yMin;
+    }
+
+    yMax = (fabs(yMax) > fabs(yMin)) ? fabs(yMax) : fabs(yMin);
+    xMax = (fabs(xMax) > fabs(xMin)) ? fabs(xMax) : fabs(xMin);
+
+    /*
+    glColor3f(1.0f, 0.08f, 0.58f);
+    glBegin(GL_LINE_LOOP);
+    for (double t = -pi + epsilon; t < pi; t += step) {
+        double x1, y1;
+        x1 = xCircleConcoid(t, a, b) / xMax;
+        y1 = yCircleConcoid(t, a, b) / yMax;
+        glVertex2d(x1 * 0.95, y1 * 0.95);
+    }
+
+    glEnd();
+    */
+
+    plot(xCircleConcoid, yCircleConcoid, a, b, -pi + epsilon, pi, step, xMax, yMax, GL_LINE_LOOP);
+}
+
+/*
+  2) Cicloid:
+  \(x = a \cdot t - b \cdot sin(t), \; y = a - b \cdot cos(t), \; t \in \mathbb{R} \) .
+  For this plot, \(a = 0.1, \; b = 0.2\) .
+*/
+
+double xCicloid(double t, double a, double b) {
+    return a * t - b * sin(t);
+}
+
+double yCicloid(double t, double a, double b) {
+    return a - b * cos(t);
+}
+
+void Display5() {
+    double a = 0.1, b = 0.2;
+
+    
+    double tMin = -pi * 3 ;
+    double tMax = pi * 3;
+
+    double xMin = a * tMin - b, xMax = a * tMax + b;
+
+    glColor3f(1.0f, 0.0f, 0.0f);
+    glBegin(GL_LINE_STRIP);
+    for (double t = tMin; t < tMax; t+=step) {
+        double x1, y1;
+
+        x1 = xCicloid(t, a, b) / xMax;
+        y1 = yCicloid(t, a, b);
+
+        glVertex2d(x1 * 0.95, y1 * 0.95);
+    }
+
+    glEnd();
+    
+
+   // plot(xCicloid, yCicloid, a, b, tMin, tMax, step, xMax, yMax, GL_LINE_STRIP);
+
+}
+
+/*
+  2) Epicicloid:
+  \(x = (a + b) \cdot cos\left( \frac{b}{a} \cdot t \right) - b \cdot cos\left(t + \frac{b}{a}\cdot t \right) \)
+  \(y = (a + b) \cdot sin\left( \frac{b}{a} \cdot t \right) - b \cdot sin\left(t + \frac{b}{a}\cdot t \right) \)
+  \( t \in \left[ 0, 2\pi \right] \) .
+  For this plot, \(a = 0.1, \; b = 0.3\) .
+*/
+double xEpicicloid(double t, double a, double b) {
+    return (a + b) * cos(b / a * t) - b * cos(t + b / a * t);
+}
+
+double yEpicicloid(double t, double a, double b) {
+    return (a + b) * sin(b / a * t) - b * sin(t + b / a * t);
+}
+
+void Display6() {
+    double a = 0.1, b = 0.3;
+
+    
+    double yMin = 1000, yMax = 0;
+    double xMin = 1000, xMax = 0;
+
+    for (double t = 0; t <= tau; t += step) {
+        double x1, y1;
+
+        x1 = xEpicicloid(t, a, b);
+        y1 = yEpicicloid(t, a, b);
+
+        xMax = (xMax < x1) ? x1 : xMax;
+        xMin = (xMin > x1) ? x1 : xMin;
+
+        yMax = (yMax < y1) ? y1 : yMax;
+        yMin = (yMin > y1) ? y1 : yMin;
+    }
+
+    yMax = (fabs(yMax) > fabs(yMin)) ? fabs(yMax) : fabs(yMin);
+    xMax = (fabs(xMax) > fabs(xMin)) ? fabs(xMax) : fabs(xMin);
+
+    /*
+    glColor3f(1.0f, 0.08f, 0.58f);
+    glBegin(GL_LINE_STRIP);
+    for (double t = 0; t <= tau; t += step) {
+        double x1, y1;
+
+        x1 = xEpicicloid(t, a, b) / xMax;
+        y1 = yEpicicloid(t, a, b) / yMax;
+
+        glVertex2d(x1 * 0.95, y1 * 0.95);
+    }
+    glEnd();
+    */
+
+    plot(xEpicicloid, yEpicicloid, a, b, 0, tau, step, xMax, yMax, GL_LINE_STRIP);
+
+}
+
+/*
+  2) Hipocicloid:
+  \(x = (a - b) \cdot cos\left( \frac{b}{a} \cdot t \right) - b \cdot cos\left(t - \frac{b}{a}\cdot t \right) \)
+  \(y = (a - b) \cdot sin\left( \frac{b}{a} \cdot t \right) - b \cdot sin\left(t - \frac{b}{a}\cdot t \right) \)
+  \( t \in \left[ 0, 2\pi \right] \) .
+  For this plot, \(a = 0.1, \; b = 0.3\) .
+ */
+
+double xHipocicloid(double t, double a, double b) {
+    return (a - b) * cos(b / a * t) - b * cos(t - b / a * t);
+}
+
+double yHipocicloid(double t, double a, double b) {
+    return (a - b) * sin(b / a * t) - b * sin(t - b / a * t);
+}
+
+void Display7() {
+    double a = 0.1, b = 0.3;
+
+    
+    double yMin = 1000, yMax = 0;
+    double xMin = 1000, xMax = 0;
+
+    for (double t = 0; t <= tau; t += step) {
+        double x1, y1;
+
+        x1 = xHipocicloid(t, a, b);
+        y1 = yHipocicloid(t, a, b);
+
+        xMax = (xMax < x1) ? x1 : xMax;
+        xMin = (xMin > x1) ? x1 : xMin;
+
+        yMax = (yMax < y1) ? y1 : yMax;
+        yMin = (yMin > y1) ? y1 : yMin;
+    }
+
+    yMax = (fabs(yMax) > fabs(yMin)) ? fabs(yMax) : fabs(yMin);
+    xMax = (fabs(xMax) > fabs(xMin)) ? fabs(xMax) : fabs(xMin);
+
+    /*
+    glColor3f(1.0f, 0.08f, 0.58f);
+    glBegin(GL_LINE_STRIP);
+    for (double t = 0; t <= tau; t += step) {
+        double x1, y1;
+
+        x1 = xHipocicloid(t, a, b) / xMax;
+        y1 = yHipocicloid(t, a, b) / yMax;
+
+        glVertex2d(x1 * 0.95, y1 * 0.95);
+    }
+    glEnd();
+    */
+
+    plot(xHipocicloid, yHipocicloid, a, b, 0, tau, step, xMax, yMax, GL_LINE_STRIP);
+}
+
+/*
+ 4) Logarithmic spiral (in polar coordinates):
+ \( r = a \cdot e^{1+t}, \; t \in (0, \infty) \) .
+ For this plot, \(a = 0.02\) .
+*/
+
+double xPolarLogarithmic(double t, double a, double undefine = 0.0) {
+    double r = a * exp(1 + t);
+
+    return r * cos(t - 3 * pi / 4);
+}
+
+double yPolarLogarithmic(double t, double a, double undefine = 0.0) {
+    double r = a * exp(1 + t);
+
+    return r * sin( t - 3 * pi / 4);
+}
+
+void Display8() {
+    double a = 0.02;
+    double tMin = 0;
+    double tMax = 2 * pi; 
+
+    double xMax = 0, yMax = 0;
+
+    for (double t = 0; t <= tau; t += step) {
+        double x1, y1;
+
+        x1 = xPolarLogarithmic(t, a, 0.0);
+        y1 = yPolarLogarithmic(t, a, 0.0);
+
+        xMax = (xMax < fabs(x1)) ? fabs(x1) : xMax;
+        yMax = (yMax < fabs(y1)) ? fabs(y1) : yMax;
+    }
+
+    xMax = (fabs(xMax) > fabs(yMax)) ? fabs(xMax) : fabs(yMax);
+
+
+    plot(xPolarLogarithmic, yPolarLogarithmic, a, 0.0, tMin, tMax + step, step, xMax, xMax, GL_LINE_STRIP);
+}
+
+/*
+  4) Sine polar plot flower:
+  \( r = sin(a \cdot t), \; t \in (0, \infty)  \) .
+  For this plot, \(a = 10\), and the number 'petals' is \( 2 \cdot a \). Think about why.
+*/
+double xPolarFlower(double t, double a, double undefine = 0.0) {
+    double r = sin(a * t);
+
+    return r * cos(t);
+}
+
+double yPolarFlower(double t, double a, double undefine = 0.0) {
+    double r = sin(a*t);
+
+    return r * sin(t);
+}
+
+void Display9() {
+
+    double a = 10.0;
+
+    plot(xPolarFlower, yPolarFlower, a, 0.0, 0, tau + 0.01, 0.01, 0.95, 0.95, GL_LINE_LOOP);
+}
+
+/*
+5) Longchamps' Trisectrix:
+\(
+x = \frac{a}{4 \cdot cos^2(t) - 3}, \;
+y = \frac{a \cdot tg(t)}{4 \cdot cos^2(t) - 3}, \;
+t \in (-\pi/2, \pi/2) \setminus \{ -\pi/6, \pi/6 \} \) .
+For this plot, \(a = 0.2\) .
+ */
+double xTrefoil(double t, double a) {
+    double numitor = a;
+    double numarator = 4 * cos(t) * cos(t) - 3;
+    return numitor / numarator;
+}
+
+double yTrefoil(double t, double a) {
+    double numitor = a * tan(t);
+    double numarator = 4 * cos(t) * cos(t) - 3;
+    return numitor / numarator;
+}
+
+
+void Display10() {
+    double step = 0.018;
+    double a = 0.2;
+
+    // punctul de unde incep triunghiurile in stanga
+    double xStartingPoint = -0.97;
+    double yStartingPoint = 0.95;
+
+ 
+    glColor3f(0, 0, 0);
+    glBegin(GL_LINE_LOOP);
+    glVertex2f(xStartingPoint, yStartingPoint);
+
+    //parcurgem intervalul (-pi/2,pi/2)
+    for (double t = -pi / 2 + step; t < pi / 2 - step; t += step) {
+        double x1, y1;
+
+        //verificam ca t-ul curent sa nu apartine multimii {-pi/6,pi/6}
+        if (fabs(t) - pi / 6 > epsilon) {
+            x1 = xTrefoil(t, a) ;
+            y1 = yTrefoil(t, a) ;
+
+            // fortam conturul sa fie in cadranul 1
+            if ( x1> -1 && x1 < 0 && y1 > 0 && y1 < 1) {
+                if (y1 > 0 && y1 < 0.19) {
+                    glColor3f(1, 0, 0);
+                }
+                glVertex2f(x1, y1);
+            }
+        }
+    }
+    glVertex2f(xStartingPoint, yStartingPoint);
+    glEnd();
+
+   
+    step = 0.036;
+    glColor3f(0.1, 0.1, 0.1);
+    for (double t = -pi / 2 ; t < pi / 2 - step / 2; t += step) {
+        if (fabs(t) - pi / 6 > epsilon) {
+            double x1 = xTrefoil(t, a);
+            double y1 = yTrefoil(t, a);
+            if (x1>-1 && x1 < 0 && y1 > 0 && y1 < 1) {
+                double y2 = yTrefoil(t + step/2, a);
+                double x2 = xTrefoil(t + step/2, a);
+                glBegin(GL_TRIANGLES);
+
+                if (y1 > 0 && y1 < 0.18) {
+                    glColor3f(1, 0.1, 0.1);
+                }
+                glVertex2f(xStartingPoint, yStartingPoint);
+                glVertex2f(x1, y1);
+                glVertex2f(x2, y2);
+
+                glEnd();
+            }
+        }
+    }
+
+    glBegin(GL_TRIANGLES); {
+        glColor3f(0.9, 0.1, 0.1);
+        glVertex2f(xStartingPoint, yStartingPoint);
+        glVertex2f(-1, yStartingPoint + a / 10);
+        glVertex2f(-1, yStartingPoint - a / 10 );
+    }
+    glEnd();
+
+  
+}
+
+void init(void) {
+    glClearColor(1.0, 1.0, 1.0, 1.0);
+    glLineWidth(2);
+    glPointSize(1);
+    //glPolygonMode(GL_FRONT, GL_LINE);
+    //Enabling blending and smoothing
+    glEnable(GL_SMOOTH);
+    glEnable(GL_POINT_SMOOTH);
+    glEnable(GL_LINE_SMOOTH);
+    glEnable(GL_POLYGON_SMOOTH);
+    glHint(GL_NICEST, GL_POINT_SMOOTH_HINT);
+    glHint(GL_NICEST, GL_LINE_SMOOTH_HINT);
+    glHint(GL_NICEST, GL_POLYGON_SMOOTH_HINT);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glHint(GL_LINE_SMOOTH_HINT, GL_DONT_CARE);
+}
+
+void Display(void) {
+    std::cout << ("Call Display") << std::endl;
+    // Clear the buffer. See init();
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    switch (prevKey) {
+    case '1':
+        Display1();
+        break;
+    case '2':
+        Display2();
+        break;
+    case '3':
+        Display3();
+        break;
+    case '4':
+        Display4();
+        break;
+    case '5':
+        Display5();
+        break;
+    case '6':
+        Display6();
+        break;
+    case '7':
+        Display7();
+        break;
+    case '8':
+        Display8();
+        break;
+    case '9':
+        Display9();
+        break;
+    case '0':
+        Display10();
+        break;
+    default:
+        break;
+    }
+    glFlush();
+}
+
+void Reshape(int w, int h) {
+    glViewport(0, 0, (GLsizei)w, (GLsizei)h);
+}
+void KeyboardFunc(unsigned char key, int x, int y) {
+    prevKey = key;
+    if (key == 27) // escape
+        exit(0);
+    //The proper way to ask glut to redraw the window.
+    glutPostRedisplay();
+}
+
+/*
+  Callback upon mouse press or release.
+  The button can be:
+  GLUT_LEFT_BUTTON, GLUT_MIDDLE_BUTTON, GLUT_RIGHT_BUTTON
+  (and further for mousewheel and other mouse buttons)
+  The state can be either GLUT_DOWN or  GLUT_UP, for
+  a pressed or released button.
+  (x, y) are the coordinates of the mouse.
+*/
+void MouseFunc(int button, int state, int x, int y) {
+    std::cout << "Mouse button ";
+    std::cout << ((button == GLUT_LEFT_BUTTON) ? "left" : ((button == GLUT_RIGHT_BUTTON) ? "right" : "middle")) << " ";
+    std::cout << ((state == GLUT_DOWN) ? "pressed" : "released");
+    std::cout << " at coordinates: " << x << " x " << y << std::endl;
+}
+
+int main(int argc, char** argv) {
+    glutInit(&argc, argv);
+    glutInitWindowSize(defaultW, defaultH);
+    glutInitWindowPosition(-1, -1);
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGBA);
+    glutCreateWindow(argv[0]);
+    init();
+    glutReshapeFunc(Reshape);
+    glutKeyboardFunc(KeyboardFunc);
+    glutMouseFunc(MouseFunc);
+    glutDisplayFunc(Display);
+    //glutIdleFunc(Display);
+    glutMainLoop();
+
+    return 0;
 }
